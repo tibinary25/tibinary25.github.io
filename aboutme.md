@@ -1,10 +1,8 @@
-
 ---
 layout: page
 title: About Me
 subtitle: Learning, building, and exploring offensive security
 ---
-
 Hi, I'm a final-year student at the **Academy of Cryptography Techniques in Ho Chi Minh City, Vietnam**, with a growing interest in cybersecurity, particularly **Offensive Security**.
 
 I'm still at the beginning of my journey in this field, constantly learning, experimenting, and improving my technical skills. I created this blog as a personal space to document my learning process, share useful knowledge, and reflect on the things I build, practice, and research.
