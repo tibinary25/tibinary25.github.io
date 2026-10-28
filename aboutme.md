@@ -14,3 +14,4 @@ What else do you need?
 ### My story
 
 To be honest, I'm having some trouble remembering right now, so why don't you just watch [my movie](https://en.wikipedia.org/wiki/The_Princess_Bride_%28film%29) and it will answer **all** your questions.
+https://blog.viettelcybersecurity.com/cac-lo-hong-bao-mat-duoc-khai-thac-nhieu-trong-6-thang-dau-nam-2023-phan-2/
