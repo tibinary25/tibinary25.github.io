@@ -32,3 +32,4 @@ layout: null
     {% endfor %}
   </channel>
 </rss>
+https://github.com/murataydemir/CVE-2019-18935
